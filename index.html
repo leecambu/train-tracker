@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GO Train Tracker</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2300853f'/%3E%3C!-- train body --%3E%3Crect x='5' y='10' width='22' height='13' rx='3' fill='%23fff'/%3E%3C!-- windows --%3E%3Crect x='8' y='13' width='5' height='4' rx='1' fill='%2300853f'/%3E%3Crect x='19' y='13' width='5' height='4' rx='1' fill='%2300853f'/%3E%3C!-- door --%3E%3Crect x='14' y='13' width='4' height='6' rx='1' fill='%2300853f'/%3E%3C!-- wheels --%3E%3Ccircle cx='10' cy='24' r='2.5' fill='%23fff'/%3E%3Ccircle cx='22' cy='24' r='2.5' fill='%23fff'/%3E%3C!-- roof stripe --%3E%3Crect x='5' y='10' width='22' height='2.5' rx='1.5' fill='%23006d33'/%3E%3C/svg%3E">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 24px 16px 48px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    header .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    header .logo-box {
+      background: #00853f;
+      color: #fff;
+      font-weight: 900;
+      font-size: 22px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      letter-spacing: 1px;
+    }
+
+    header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #c9d1d9;
+    }
+
+    #card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 480px;
+      padding: 28px;
+    }
+
+    #status {
+      text-align: center;
+      color: #8b949e;
+      font-size: 15px;
+      padding: 16px 0;
+    }
+
+    #status.error { color: #f85149; }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #30363d;
+      border-top-color: #00853f;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .station-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #1c2128;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+    }
+
+    .station-badge .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #00853f;
+      flex-shrink: 0;
+    }
+
+    .station-badge .label {
+      font-size: 11px;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .station-badge .name {
+      font-size: 17px;
+      font-weight: 700;
+      color: #e6edf3;
+    }
+
+    .station-badge .direction {
+      font-size: 12px;
+      color: #00853f;
+      margin-top: 2px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #8b949e;
+      margin-bottom: 12px;
+    }
+
+    .trains-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .train-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #1c2128;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px 16px;
+      transition: border-color 0.15s;
+    }
+
+    .train-item:first-child {
+      border-color: #00853f;
+      background: #0d1f17;
+    }
+
+    .train-item:first-child .time {
+      color: #3fb950;
+    }
+
+    .train-item .time {
+      font-size: 22px;
+      font-weight: 700;
+      color: #e6edf3;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .train-item .meta {
+      text-align: right;
+    }
+
+    .train-item .countdown {
+      font-size: 13px;
+      font-weight: 600;
+      color: #8b949e;
+    }
+
+    .train-item:first-child .countdown {
+      color: #3fb950;
+    }
+
+    .train-item .period {
+      font-size: 11px;
+      color: #8b949e;
+      margin-top: 2px;
+    }
+
+    .distance-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .distance-chip {
+      flex: 1;
+      background: #1c2128;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .distance-chip .chip-name {
+      color: #8b949e;
+      margin-bottom: 2px;
+    }
+
+    .distance-chip .chip-dist {
+      font-weight: 600;
+      color: #e6edf3;
+    }
+
+    .distance-chip.closer {
+      border-color: #00853f;
+    }
+
+    .distance-chip.closer .chip-dist {
+      color: #3fb950;
+    }
+
+    .disclaimer {
+      margin-top: 20px;
+      font-size: 11px;
+      color: #8b949e;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .disclaimer a {
+      color: #00853f;
+      text-decoration: none;
+    }
+
+    .disclaimer a:hover { text-decoration: underline; }
+
+    #retry-btn {
+      display: none;
+      margin: 16px auto 0;
+      background: #00853f;
+      color: #fff;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #retry-btn:hover { background: #006d33; }
+
+    .manual-picker {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .manual-picker p {
+      font-size: 13px;
+      color: #8b949e;
+      margin-bottom: 12px;
+    }
+
+    .picker-btns {
+      display: flex;
+      gap: 10px;
+    }
+
+    .picker-btn {
+      flex: 1;
+      background: #1c2128;
+      border: 1px solid #30363d;
+      color: #e6edf3;
+      border-radius: 8px;
+      padding: 14px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      line-height: 1.4;
+    }
+
+    .picker-btn:hover {
+      border-color: #00853f;
+      background: #0d1f17;
+      color: #3fb950;
+    }
+
+    .picker-btn .btn-icon {
+      display: block;
+      font-size: 20px;
+      margin-bottom: 6px;
+    }
+
+    .geo-hint {
+      margin-top: 16px;
+      font-size: 11px;
+      color: #8b949e;
+      text-align: center;
+      line-height: 1.6;
+      padding: 10px;
+      background: #1c2128;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+    }
+
+    .back-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: #8b949e;
+      font-size: 12px;
+      cursor: pointer;
+      margin-bottom: 16px;
+      padding: 0;
+    }
+
+    .back-btn:hover { color: #e6edf3; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-box">GO</span>
+  </div>
+  <h1>Train Tracker</h1>
+</header>
+
+<div id="card">
+  <button class="back-btn" id="back-btn" onclick="init()">&#8592; Detect my location again</button>
+  <div id="status"><span class="spinner"></span> Detecting your location…</div>
+  <div id="manual-picker" style="display:none;" class="manual-picker">
+    <p id="picker-msg">Could not detect location. Choose your station:</p>
+    <div class="picker-btns">
+      <button class="picker-btn" onclick="renderManual('whitby')">
+        <span class="btn-icon">🚉</span>
+        I'm at<br>Whitby GO
+      </button>
+      <button class="picker-btn" onclick="renderManual('union')">
+        <span class="btn-icon">🏙️</span>
+        I'm at<br>Union Station
+      </button>
+    </div>
+    <div id="geo-hint" class="geo-hint" style="display:none;"></div>
+  </div>
+  <div id="content" style="display:none;"></div>
+  <p class="disclaimer">
+    Times based on published GO Transit schedules — may not reflect delays or service changes.<br>
+    Always verify at <a href="https://www.gotransit.com" target="_blank">gotransit.com</a>.
+  </p>
+</div>
+
+<script>
+  // ── Station coordinates ──────────────────────────────────────────────────────
+  const STATIONS = {
+    whitby: {
+      name: "Whitby GO",
+      lat: 43.8731,
+      lon: -78.9426,
+      direction: "Towards Union Station",
+      line: "Lakeshore East",
+    },
+    union: {
+      name: "Union Station",
+      lat: 43.6453,
+      lon: -79.3806,
+      direction: "Towards Whitby GO",
+      line: "Lakeshore East",
+    },
+  };
+
+  // ── Schedule data (24-hr, HH:MM) ─────────────────────────────────────────────
+  // Whitby GO → Union Station (westbound)
+  const WHITBY_TO_UNION = {
+    weekday: [
+      "05:40","06:05","06:28","06:50","07:12","07:34","07:56",
+      "08:17","08:39","09:02","09:35","10:35","11:35","12:35",
+      "13:35","14:35","15:07","15:34","15:58","16:22","16:46",
+      "17:10","17:33","17:57","18:21","18:50","19:35","20:35",
+      "21:35","22:35","23:15",
+    ],
+    weekend: [
+      "07:05","08:35","10:05","11:35","13:05","14:35",
+      "16:05","17:35","19:05","20:35","22:05",
+    ],
+  };
+
+  // Union Station → Whitby GO (eastbound)
+  const UNION_TO_WHITBY = {
+    weekday: [
+      "06:10","06:45","07:20","07:55","08:30","09:05","10:05",
+      "11:05","12:05","13:05","14:05","15:00","15:30","16:00",
+      "16:27","16:53","17:18","17:43","18:07","18:32","18:58",
+      "19:25","19:58","20:55","21:55","22:55","23:30",
+    ],
+    weekend: [
+      "08:00","09:30","11:00","12:30","14:00","15:30",
+      "17:00","18:30","20:00","21:30","23:00",
+    ],
+  };
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  function haversineKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) *
+      Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function scheduleKey(date) {
+    const day = date.getDay(); // 0=Sun, 6=Sat
+    return day === 0 || day === 6 ? "weekend" : "weekday";
+  }
+
+  function parseMinutes(hhmm) {
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
+  }
+
+  function formatTime12(hhmm) {
+    const [h, m] = hhmm.split(":").map(Number);
+    const ampm = h < 12 ? "AM" : "PM";
+    const hour = h % 12 || 12;
+    return `${hour}:${String(m).padStart(2, "0")} ${ampm}`;
+  }
+
+  function minutesUntil(trainMins, nowMins) {
+    let diff = trainMins - nowMins;
+    if (diff < 0) diff += 24 * 60; // next day wrap
+    return diff;
+  }
+
+  function formatCountdown(mins) {
+    if (mins < 1) return "Departing now";
+    if (mins < 60) return `${mins} min`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  }
+
+  function getNext5(schedule, now) {
+    const key = scheduleKey(now);
+    const times = schedule[key];
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+
+    // Pair each time with minutes-until, sort, take first 5
+    const upcoming = times
+      .map((t) => ({ time: t, wait: minutesUntil(parseMinutes(t), nowMins) }))
+      .sort((a, b) => a.wait - b.wait)
+      .slice(0, 5);
+
+    return upcoming;
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+  function render(userLat, userLon) {
+    const distWhitby = haversineKm(userLat, userLon, STATIONS.whitby.lat, STATIONS.whitby.lon);
+    const distUnion  = haversineKm(userLat, userLon, STATIONS.union.lat,  STATIONS.union.lon);
+
+    const closer  = distWhitby <= distUnion ? "whitby" : "union";
+    const further = closer === "whitby" ? "union" : "whitby";
+
+    const station   = STATIONS[closer];
+    const schedule  = closer === "whitby" ? WHITBY_TO_UNION : UNION_TO_WHITBY;
+
+    const now    = new Date();
+    const trains = getNext5(schedule, now);
+
+    const distCloser  = closer === "whitby" ? distWhitby : distUnion;
+    const distFurther = closer === "whitby" ? distUnion  : distWhitby;
+
+    const trainRows = trains.map((t, i) => `
+      <li class="train-item">
+        <span class="time">${formatTime12(t.time)}</span>
+        <div class="meta">
+          <div class="countdown">${i === 0 ? formatCountdown(t.wait) : formatCountdown(t.wait)}</div>
+          <div class="period">${scheduleKey(now) === "weekday" ? "Weekday" : "Weekend"} service</div>
+        </div>
+      </li>
+    `).join("");
+
+    document.getElementById("content").innerHTML = `
+      <div class="station-badge">
+        <div class="dot"></div>
+        <div>
+          <div class="label">Closest station</div>
+          <div class="name">${station.name}</div>
+          <div class="direction">${station.direction} &rsaquo; ${station.line}</div>
+        </div>
+      </div>
+
+      <div class="distance-row">
+        <div class="distance-chip closer">
+          <div class="chip-name">${STATIONS[closer].name}</div>
+          <div class="chip-dist">${distCloser.toFixed(1)} km</div>
+        </div>
+        <div class="distance-chip">
+          <div class="chip-name">${STATIONS[further].name}</div>
+          <div class="chip-dist">${distFurther.toFixed(1)} km</div>
+        </div>
+      </div>
+
+      <p class="section-title">Next 5 departures</p>
+      <ul class="trains-list">${trainRows}</ul>
+    `;
+
+    document.getElementById("status").style.display = "none";
+    document.getElementById("content").style.display = "block";
+  }
+
+  // ── Manual fallback ───────────────────────────────────────────────────────────
+  function renderManual(stationKey) {
+    // Use the station's own coordinates as "user location" — picks that station
+    const s = STATIONS[stationKey];
+    document.getElementById("manual-picker").style.display = "none";
+    document.getElementById("back-btn").style.display = "block";
+    render(s.lat, s.lon);
+  }
+
+  function showPicker(hint) {
+    document.getElementById("status").style.display = "none";
+    document.getElementById("content").style.display = "none";
+    const picker = document.getElementById("manual-picker");
+    picker.style.display = "block";
+    if (hint) {
+      const hintEl = document.getElementById("geo-hint");
+      hintEl.textContent = hint;
+      hintEl.style.display = "block";
+    }
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────────
+  function init() {
+    document.getElementById("content").style.display = "none";
+    document.getElementById("manual-picker").style.display = "none";
+    document.getElementById("back-btn").style.display = "none";
+    document.getElementById("geo-hint").style.display = "none";
+    const el = document.getElementById("status");
+    el.className = "";
+    el.innerHTML = '<span class="spinner"></span> Detecting your location…';
+    el.style.display = "block";
+
+    if (!navigator.geolocation) {
+      document.getElementById("picker-msg").textContent = "Geolocation not supported. Choose your station:";
+      showPicker();
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => render(pos.coords.latitude, pos.coords.longitude),
+      (err) => {
+        let hint = "";
+        if (err.code === err.PERMISSION_DENIED) {
+          hint = "Tip: allow location in your browser settings, then tap \"Detect my location again\".";
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          hint = "Tip: on macOS go to System Settings → Privacy & Security → Location Services and enable it for your browser.";
+        }
+        document.getElementById("picker-msg").textContent = "Could not detect location. Choose your station:";
+        showPicker(hint);
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+    );
+  }
+
+  init();
+</script>
+</body>
+</html>
