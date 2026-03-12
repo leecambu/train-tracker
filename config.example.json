@@ -1,0 +1,7 @@
+{
+  "line": "LE",
+  "homeStop": "WH",
+  "destStop": "UN",
+  "useLiveApi": false,
+  "apiKey": "YOUR_API_KEY_HERE"
+}
